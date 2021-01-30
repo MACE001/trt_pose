@@ -117,54 +117,63 @@ def preprocess(image):
     image.sub_(mean[:, None, None]).div_(std[:, None, None])
     return image[None, ...]
 
-def excute(img, src):
-    color = (0, 255, 0)
-    data = preprocess(img)
-    cmap, paf = model_trt(data)
-    cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
-    counts, objects, peaks = parse_objects(cmap, paf)#, cmap_threshold=0.15, link_threshold=0.15)
+line_li = [[0,17],[1,3],[0,1],[2,4],[0,2],[5,11],[6,12],[7,9],[5,7],[6,5],[8,6],[10,8],[13,15],[11,13],[12,11],[14,12],[16,14]]
+
+def draw_keypoint(src,counts,objects,peaks):
+    src_w, src_h, tmp = src.shape
+    X_compress = src_w / WIDTH * 1.9
+    Y_compress =  src_h / HEIGHT / 2.0
+    color = (0,255,0)
     for i in range(counts[0]):
         keypoints = get_keypoint(objects, i, peaks)
         for j in range(len(keypoints)):
             if keypoints[j][1]:
-                x = round((keypoints[j][2] * WIDTH * X_compress)+150)
-                y = round((keypoints[j][1] * HEIGHT * Y_compress))
+                x = round(keypoints[j][2] * WIDTH * X_compress)
+                y = round(keypoints[j][1] * HEIGHT * Y_compress)
                 cv2.circle(src, (x, y), 3, color, 2)
                 cv2.putText(src , "%s" % body_index[keypoints[j][0]], (x + 5, y),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 1)
                 cv2.circle(src, (x, y), 3, color, 2)
-    #draw_objects(img, counts, objects, peaks)
-    #out_video.write(src)
+        for x in line_li:
+            if keypoints[x[0]][1] != None and keypoints[x[1]][1] != None:
+                x0 = round(keypoints[x[0]][2]*WIDTH*X_compress)
+                y0 = round(keypoints[x[0]][1]*HEIGHT*Y_compress)
+                x1 = round(keypoints[x[1]][2]*WIDTH*X_compress)
+                y1 = round(keypoints[x[1]][1]*HEIGHT*Y_compress)
+                cv2.line(src, (x0, y0), (x1, y1), color, 2)
     return src
 
-cap = cv2.VideoCapture("myvideo.webm")#video file path
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
+def excute(img, src,t):
+    data = preprocess(img)
+    cmap, paf = model_trt(data)
+    cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
+    counts, objects, peaks = parse_objects(cmap, paf)#, cmap_threshold=0.15, link_threshold=0.15)
+    fps = 1.0 / (time.time()-t)
+    src = draw_keypoint(src,counts,objects,peaks)
+    print(fps)
+    cv2.putText(src , "FPS: %f" % (fps), (50, 50),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 1)
+    return src
+
+cap = cv2.VideoCapture("testvideo.mp4")#video file path
 ret_val, img = cap.read()
-fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')#avi = XVID
+fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 out_video = cv2.VideoWriter('output.mp4', fourcc, cap.get(cv2.CAP_PROP_FPS), (640, 480))
 count = 0
-
-X_compress = 640.0 / WIDTH * 1.0
-Y_compress = 480.0 / HEIGHT * 1.0
 
 parse_objects = ParseObjects(topology)
 draw_objects = DrawObjects(topology)
 
 k=1
 while True:
-    if(cap.get(cv2.CAP_PROP_POS_FRAMES)==cap.get(cv2.CAP_PROP_FRAME_COUNT)):
-        cap.open("myvideo.webm")
+    t = time.time()
     ret,frame = cap.read()
     try:
         img = cv2.resize(frame, dsize=(WIDTH, HEIGHT), interpolation=cv2.INTER_AREA)
     except:
         break
-    frame = excute(img, frame)
+    frame = excute(img, frame,t)
     cv2.imwrite("images/"+str(k)+".jpeg",frame)
     k+=1
-    if cv2.waitKey(1)&0xFF==ord('q'):
-        break
 
 cv2.destroyAllWindows()
 out_video.release()
