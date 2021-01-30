@@ -119,8 +119,7 @@ def preprocess(image):
 
 line_li = [[0,17],[1,3],[0,1],[2,4],[0,2],[5,11],[6,12],[7,9],[5,7],[6,5],[8,6],[10,8],[13,15],[11,13],[12,11],[14,12],[16,14]]
 
-def draw_keypoint(src,counts,objects,peaks):
-    src_w, src_h, tmp = src.shape
+def draw_keypoint(src,counts,objects,peaks,src_w,src_h):
     X_compress = src_w / WIDTH * 1.9
     Y_compress =  src_h / HEIGHT / 2.0
     color = (0,255,0)
@@ -144,14 +143,15 @@ def draw_keypoint(src,counts,objects,peaks):
 
 
 def excute(img, src,t):
+    src_w, src_h, tmp = src.shape
     data = preprocess(img)
     cmap, paf = model_trt(data)
     cmap, paf = cmap.detach().cpu(), paf.detach().cpu()
     counts, objects, peaks = parse_objects(cmap, paf)#, cmap_threshold=0.15, link_threshold=0.15)
     fps = 1.0 / (time.time()-t)
-    src = draw_keypoint(src,counts,objects,peaks)
+    src = draw_keypoint(src,counts,objects,peaks,src_w,src_h)
     print(fps)
-    cv2.putText(src , "FPS: %f" % (fps), (50, 50),  cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 1)
+    cv2.putText(src , "FPS: %f" % (fps), (50, 50),  cv2.FONT_HERSHEY_SIMPLEX, int(src_h/8), (0, 0, 0), 1)
     return src
 
 cap = cv2.VideoCapture("testvideo.mp4")#video file path
