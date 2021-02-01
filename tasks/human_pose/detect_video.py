@@ -1,3 +1,4 @@
+#detect_video.py
 import json
 import trt_pose.coco
 import trt_pose.models
@@ -13,12 +14,7 @@ from trt_pose.parse_objects import ParseObjects
 import argparse
 import os.path
 
-
-'''
-hnum: 0 based human index
-kpoint : keypoints (float type range : 0.0 ~ 1.0 ==> later multiply by image width, height
-'''
-
+#body_index replaces kpoint list
 body_index = ["nose",
 "L_eye",
 "R_eye",
@@ -117,6 +113,7 @@ def preprocess(image):
     image.sub_(mean[:, None, None]).div_(std[:, None, None])
     return image[None, ...]
 
+#For draw line 0(nose)->17(neck), 1(L_eye)->3(L_ear)...
 line_li = [[0,17],[1,3],[0,1],[2,4],[0,2],[5,11],[6,12],[7,9],[5,7],[6,5],[8,6],[10,8],[13,15],[11,13],[12,11],[14,12],[16,14]]
 
 def draw_keypoint(src,counts,objects,peaks,src_w,src_h):
@@ -151,13 +148,12 @@ def excute(img, src,t):
     fps = 1.0 / (time.time()-t)
     src = draw_keypoint(src,counts,objects,peaks,src_w,src_h)
     print(fps)
-    cv2.putText(src , "FPS: %f" % (fps), (50, 50),  cv2.FONT_HERSHEY_SIMPLEX, int(src_h/8), (0, 0, 0), 1)
+    cv2.putText(src , "FPS: %f" % (fps), (50, 50),  cv2.FONT_HERSHEY_SIMPLEX, int(src_h/8), (0, 255, 0), 1)
     return src
 
 cap = cv2.VideoCapture("testvideo.mp4")#video file path
 ret_val, img = cap.read()
-fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-out_video = cv2.VideoWriter('output.mp4', fourcc, cap.get(cv2.CAP_PROP_FPS), (640, 480))
+fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')#mp4 codek
 count = 0
 
 parse_objects = ParseObjects(topology)
@@ -176,5 +172,4 @@ while True:
     k+=1
 
 cv2.destroyAllWindows()
-out_video.release()
 cap.release()
